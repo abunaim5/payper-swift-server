@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const jwt = require('jsonwebtoken');
 const express = require('express');
 const cors = require('cors');
 const app = express();
@@ -25,7 +26,29 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    
+    const userCollection = client.db('payperSwiftDB').collection('users');
+
+    // jwt related apis
+    app.post('jwt', async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+      res.send({ token });
+    });
+
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      // console.log(user);
+      const query = {
+        email: user.email,
+        phone: user.phone
+      };
+      const existingUser = await userCollection.findOne(query);
+      if (user.email === existingUser?.email || user.phone === existingUser?.phone) {
+        return res.send('User already exist.');
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -39,9 +62,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('PayperSwift Server is Running');
+  res.send('PayperSwift Server is Running');
 });
 
 app.listen(port, () => {
-    console.log(`PayperSwift Server is Running on PORT ${port}`);
+  console.log(`PayperSwift Server is Running on PORT ${port}`);
 });
